@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ônibus W3 Norte · QI 8</title>
+<meta name="description" content="Posição ao vivo dos ônibus que passam pela W3 Norte e pela EPPN em frente à SHIN QI 8, no Lago Norte (Brasília).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+/* Mapa em tela cheia; um painel com cara de letreiro de ônibus flutua à esquerda.
+   No celular o painel vira uma gaveta abaixo do mapa. */
+:root {
+  --fundo: #eef1f4;
+  --superficie: #ffffff;
+  --texto: #15202b;
+  --suave: #5a6774;
+  --borda: #d8dee4;
+  --destaque: #0b5cad;
+  --ok: #2b8a3e;
+  --aviso: #c26a00;
+  --erro: #c92a2a;
+  --sombra: 0 6px 24px rgb(16 24 32 / .18);
+  --letreiro-fundo: #14171a;
+  --letreiro-texto: #ffb31a;
+  --letreiro-suave: #b98516;
+  --placa-texto: #ffffff;
+  --marcador-borda: #ffffff;
+  --fonte: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --fonte-placa: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #0e1318;
+    --superficie: #151c23;
+    --texto: #e4ebf2;
+    --suave: #95a3b1;
+    --borda: #29333d;
+    --destaque: #6aa9ee;
+    --ok: #4cc26a;
+    --aviso: #f0a33a;
+    --erro: #ff6b6b;
+    --sombra: 0 6px 24px rgb(0 0 0 / .5);
+    color-scheme: dark;
+  }
+  .mapa-ruas .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.55); }
+}
+
+html, body { height: 100%; margin: 0; }
+body { background: var(--fundo); color: var(--texto); font: 15px/1.4 var(--fonte); -webkit-font-smoothing: antialiased; }
+#mapa { position: fixed; inset: 0; background: var(--fundo); }
+
+#painel {
+  position: fixed; z-index: 1000;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  width: 360px;
+  max-height: calc(100% - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 12px;
+  box-shadow: var(--sombra); overflow: hidden;
+}
+.letreiro {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-block: 12px 10px; padding-inline: 16px;
+  background-color: var(--letreiro-fundo);
+  background-image: radial-gradient(rgb(255 255 255 / .06) 1px, transparent 1.3px);
+  background-size: 4px 4px;
+  color: var(--letreiro-texto);
+}
+.letreiro h1 {
+  margin: 0; font: 700 1.5rem/1.05 var(--fonte-placa); letter-spacing: .04em;
+  text-transform: uppercase; text-wrap: balance; text-shadow: 0 0 8px rgb(255 179 26 / .45);
+}
+.letreiro p {
+  margin: 3px 0 0; font: 600 .78rem/1.2 var(--fonte-placa); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--letreiro-suave);
+}
+.recolher {
+  display: none; flex: none; width: 36px; height: 36px; border: 1px solid var(--letreiro-suave);
+  border-radius: 8px; background: none; color: var(--letreiro-texto); font-size: 1.1rem; cursor: pointer;
+}
+.recolher span { display: inline-block; transition: transform .2s; }
+#painel.recolhido .recolher span { transform: rotate(180deg); }
+
+.status {
+  display: flex; align-items: center; gap: 10px;
+  padding-block: 9px; padding-inline: 16px;
+  border-bottom: 1px solid var(--borda); font-size: .86rem; color: var(--suave);
+  font-variant-numeric: tabular-nums;
+}
+.status .ponto { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--suave); }
+.status[data-estado="ok"] .ponto { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.status[data-estado="parcial"] .ponto { background: var(--aviso); }
+.status[data-estado="erro"] .ponto { background: var(--erro); }
+.status[data-estado="erro"] #status-texto { color: var(--erro); }
+#status-texto { flex: 1; min-width: 0; }
+.botao {
+  flex: none; border: 1px solid var(--borda); border-radius: 7px; background: var(--superficie);
+  color: var(--texto); font: 500 .82rem/1 var(--fonte); padding: 7px 10px; cursor: pointer;
+}
+.botao:hover { border-color: var(--destaque); color: var(--destaque); }
+.botao:disabled { opacity: .5; cursor: progress; }
+:is(.botao, .recolher, .veiculo, .linha input):focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+
+.rolagem { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 16px; padding-block: 12px 14px; padding-inline: 16px; }
+.cabecalho-secao { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+h2 { margin: 0; font: 600 .72rem/1.2 var(--fonte); letter-spacing: .1em; text-transform: uppercase; color: var(--suave); }
+.link { border: 0; background: none; padding: 0; color: var(--destaque); font: 500 .82rem/1 var(--fonte); cursor: pointer; }
+ul { list-style: none; margin: 0; padding: 0; }
+
+.placa {
+  display: inline-block; min-width: 3.4em; text-align: center;
+  font: 700 1.05rem/1 var(--fonte-placa); letter-spacing: .02em; font-variant-numeric: tabular-nums;
+  color: var(--placa-texto); background: var(--cor); padding: .3em .45em .22em; border-radius: 4px;
+}
+#linhas { display: grid; gap: 2px; margin-top: 6px; }
+.linha {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px;
+  padding-block: 8px; border-bottom: 1px solid var(--borda); cursor: pointer;
+}
+#linhas li:last-child .linha { border-bottom: 0; }
+.linha input { width: 18px; height: 18px; margin: 0; accent-color: var(--cor); }
+.linha:has(input:not(:checked)) { opacity: .5; }
+.linha-texto { min-width: 0; }
+.linha-desc { display: block; font-size: .86rem; line-height: 1.3; }
+.linha-qtd { display: block; margin-top: 2px; font-size: .8rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+
+#veiculos { display: grid; gap: 6px; margin-top: 8px; }
+.veiculo {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.veiculo:hover { border-color: var(--cor); }
+.veiculo.antigo { opacity: .6; }
+.veiculo strong { display: block; font-weight: 600; font-variant-numeric: tabular-nums; }
+.veiculo small { display: block; color: var(--suave); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.vazio { margin: 8px 0 0; color: var(--suave); font-size: .86rem; }
+
+.rodape { margin: 0; font-size: .76rem; line-height: 1.45; color: var(--suave); }
+.rodape a { color: var(--destaque); }
+
+/* Marcadores no mapa: ponto com "bico" apontando o rumo, placa da linha acima. */
+.marcador-onibus { background: none; border: 0; }
+.onibus { position: relative; }
+.onibus .seta {
+  position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; box-sizing: border-box;
+  border-radius: 50%; background: var(--cor); border: 2px solid var(--marcador-borda);
+  box-shadow: 0 1px 4px rgb(0 0 0 / .45); transform: rotate(var(--rumo));
+}
+.onibus .seta::after {
+  content: ""; position: absolute; left: 50%; top: -9px; transform: translateX(-50%);
+  border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--cor);
+}
+.onibus .seta.sem-rumo::after { display: none; }
+.onibus .placa {
+  position: absolute; left: 0; bottom: 21px; transform: translateX(-50%); white-space: nowrap; min-width: 0;
+  font-size: .95rem; border: 1.5px solid var(--marcador-borda); box-shadow: 0 1px 4px rgb(0 0 0 / .45);
+}
+.onibus.antigo { opacity: .5; }
+
+.rotulo-qi8 {
+  background: var(--letreiro-fundo); color: var(--letreiro-texto); border: 0; border-radius: 4px;
+  font: 700 .85rem/1 var(--fonte-placa); letter-spacing: .06em; padding: 5px 7px; box-shadow: var(--sombra);
+}
+.rotulo-qi8::before { border-right-color: var(--letreiro-fundo); }
+
+.leaflet-container { font-family: var(--fonte); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--superficie); color: var(--texto); }
+.leaflet-popup-content { margin: 12px 14px; font-size: .88rem; line-height: 1.45; }
+.leaflet-popup-content p { margin: 6px 0 0; }
+.leaflet-bar a, .leaflet-control-layers, .leaflet-control-layers-expanded { background: var(--superficie); color: var(--texto); border-color: var(--borda); }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--superficie) 85%, transparent) !important; color: var(--suave); }
+.leaflet-control-attribution a { color: var(--destaque); }
+
+@media (max-width: 719px) {
+  body { display: flex; flex-direction: column; }
+  #mapa { position: relative; inset: auto; flex: 1; min-height: 0; }
+  #painel {
+    /* altura fixa: o mapa já nasce do tamanho final e o enquadramento inicial não fica velho */
+    position: relative; top: auto; left: auto; width: auto; height: 46%; max-height: none; flex: none;
+    border-radius: 14px 14px 0 0; border-inline: 0; border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .letreiro, .status, .rolagem {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .letreiro h1 { font-size: 1.3rem; }
+  .recolher { display: inline-grid; place-items: center; }
+  #painel.recolhido { height: auto; }
+  #painel.recolhido .rolagem { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .recolher span { transition: none; } }
+</style>
+</head>
+<body>
+<div id="mapa" aria-label="Mapa com a posição dos ônibus"></div>
+
+<aside id="painel" aria-label="Linhas e ônibus">
+  <header class="letreiro">
+    <div>
+      <h1>W3 Norte · SHIN QI 8</h1>
+      <p>Ônibus ao vivo</p>
+    </div>
+    <button id="recolher" class="recolher" type="button" aria-expanded="true" aria-controls="rolagem" title="Recolher painel"><span aria-hidden="true">▾</span></button>
+  </header>
+
+  <div id="status" class="status" data-estado="carregando" role="status" aria-live="polite">
+    <span class="ponto" aria-hidden="true"></span>
+    <span id="status-texto">Consultando a Semob…</span>
+    <button id="atualizar" class="botao" type="button">Atualizar</button>
+  </div>
+
+  <div id="rolagem" class="rolagem">
+    <section>
+      <div class="cabecalho-secao">
+        <h2>Linhas</h2>
+        <button id="enquadrar" class="link" type="button">Ver rotas inteiras</button>
+      </div>
+      <ul id="linhas"></ul>
+    </section>
+
+    <section>
+      <h2>Ônibus agora</h2>
+      <ul id="veiculos"></ul>
+      <p id="vazio" class="vazio" hidden>Nenhum ônibus dessas linhas transmitindo posição agora.</p>
+    </section>
+
+    <p id="rodape" class="rodape"></p>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="rotas.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const API = 'https://www.sistemas.dftrans.df.gov.br';
+  const INTERVALO_MS = 15000;
+  const TEMPO_LIMITE_MS = 12000;
+  const ANTIGO_MS = 3 * 60e3;   // posição velha: marcador esmaecido
+  const OCULTO_MS = 30 * 60e3;  // velha demais: some do mapa
+  const CORES = ['#1864ab', '#d9480f', '#862e9c', '#2b8a3e', '#c2255c', '#0b7285'];
+
+  const $ = (s) => document.querySelector(s);
+  const painel = $('#painel'), statusEl = $('#status'), statusTexto = $('#status-texto');
+  const botaoAtualizar = $('#atualizar'), linhasEl = $('#linhas'), veiculosEl = $('#veiculos');
+
+  const dados = window.DADOS_ROTAS;
+  if (!dados || !window.L) {
+    statusEl.dataset.estado = 'erro';
+    statusTexto.textContent = !window.L
+      ? 'A biblioteca do mapa (Leaflet) não carregou. Verifique a conexão e recarregue a página.'
+      : 'Arquivo rotas.js não encontrado. Rode "python gerar_rotas.py" na pasta do site.';
+    botaoAtualizar.hidden = true;
+    return;
+  }
+
+  // ---------- utilidades ----------
+  const rad = Math.PI / 180;
+  function distanciaM(a, b) {
+    const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+    return 2 * 6371000 * Math.asin(Math.sqrt(h));
+  }
+  function rumoGraus(a, b) {
+    const dLon = (b.lon - a.lon) * rad;
+    const y = Math.sin(dLon) * Math.cos(b.lat * rad);
+    const x = Math.cos(a.lat * rad) * Math.sin(b.lat * rad) - Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(dLon);
+    return (Math.atan2(y, x) / rad + 360) % 360;
+  }
+  const escapar = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const MINUSCULAS = new Set(['do', 'da', 'de', 'dos', 'das', 'e']);
+  // "RODOVIÁRIA DO PLANO PILOTO / W3 NORTE" -> "Rodoviária do Plano Piloto / W3 Norte"
+  const tituloBonito = (s) => String(s ?? '').toLowerCase().split(' ').map((p, i) =>
+    /\d/.test(p) ? p.toUpperCase() : (i && MINUSCULAS.has(p)) ? p : p.replace(/\p{L}/u, (c) => c.toUpperCase())).join(' ');
+  const fmtHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const fmtData = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' });
+  const fmtKm = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const distanciaTexto = (m) => m < 1000 ? `${Math.round(m / 10) * 10} m` : `${fmtKm.format(m / 1000)} km`;
+  function idadeTexto(ms) {
+    const s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return `há ${s} s`;
+    const min = Math.floor(s / 60);
+    return min < 60 ? `há ${min} min` : `há ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
+  }
+  const movimentoReduzido = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- linhas e mapa ----------
+  const LINHAS = dados.linhas.map((l, i) => ({ ...l, cor: CORES[i % CORES.length], visivel: true, falhou: false }));
+  const porCodigo = new Map(LINHAS.map((l) => [l.codigo, l]));
+  const ordem = (codigo) => LINHAS.findIndex((l) => l.codigo === codigo);
+  const QI8 = dados.paradas_qi8;
+  const distanciaQI8 = (v) => Math.min(...QI8.map((p) => distanciaM(v, p)));
+
+  const mapa = L.map('mapa', { zoomControl: false });
+  // A vista precisa existir antes de qualquer camada: um vetor adicionado antes do "load" cria o
+  // renderizador SVG, que só inicializa depois dos grupos e quebra o recorte das rotas.
+  const limites = L.latLngBounds(LINHAS.flatMap((l) => l.itinerarios.flatMap((it) => it.trechos.flat())));
+  const telaLarga = matchMedia('(min-width: 720px)');
+  function enquadrar() {
+    mapa.fitBounds(limites, telaLarga.matches
+      ? { paddingTopLeft: [painel.offsetWidth + 36, 24], paddingBottomRight: [24, 24] }
+      : { padding: [16, 16] });
+  }
+  enquadrar();
+  L.control.zoom({ position: 'topright' }).addTo(mapa);
+
+  // tile.openstreetmap.org bloqueia pedidos sem Referer (página aberta direto do disco);
+  // nesse caso o mapa de ruas da Esri, que não exige Referer, vira o padrão.
+  const viaHttp = location.protocol === 'http:' || location.protocol === 'https:';
+  const bases = {};
+  if (viaHttp) {
+    bases['Ruas (OpenStreetMap)'] = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+  }
+  bases['Ruas (Esri)'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, maxNativeZoom: 18, attribution: 'Mapa &copy; Esri, HERE, Garmin, OpenStreetMap' });
+  bases['Satélite (Esri)'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, maxNativeZoom: 18, attribution: 'Imagens &copy; Esri' });
+  const nomeInicial = Object.keys(bases)[0];
+  bases[nomeInicial].addTo(mapa);
+  L.control.layers(bases, null, { position: 'topright' }).addTo(mapa);
+  const marcarTipoBase = (nome) => mapa.getContainer().classList.toggle('mapa-ruas', !nome.startsWith('Satélite'));
+  marcarTipoBase(nomeInicial);
+  mapa.on('baselayerchange', (e) => marcarTipoBase(e.name));
+
+  // Rotas desenhadas da mais larga para a mais fina: onde se sobrepõem, aparecem como faixas concêntricas.
+  LINHAS.forEach((l, i) => {
+    l.grupoRota = L.layerGroup().addTo(mapa);
+    l.grupoOnibus = L.layerGroup().addTo(mapa);
+    const peso = 4 + (LINHAS.length - 1 - i) * 3.5;
+    for (const it of l.itinerarios) for (const trecho of it.trechos) {
+      L.polyline(trecho, { color: l.cor, weight: peso, opacity: .7, lineJoin: 'round', interactive: false }).addTo(l.grupoRota);
+    }
+  });
+
+  // Rótulo da QI 8 abaixo dos ônibus (o painel padrão de tooltips fica acima dos marcadores e os esconderia).
+  mapa.createPane('rotulos').style.zIndex = 590;
+  QI8.forEach((p, i) => {
+    const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: '#15202b', weight: 2, fillColor: '#ffd43b', fillOpacity: 1 })
+      .bindPopup(`<strong>Parada ${escapar(p.codigo)}</strong><p>${escapar(p.descricao)}</p>`)
+      .addTo(mapa);
+    if (i === 0) m.bindTooltip('SHIN QI 8', { permanent: true, direction: 'right', offset: [8, 0], className: 'rotulo-qi8', pane: 'rotulos' });
+  });
+
+  $('#enquadrar').addEventListener('click', enquadrar);
+
+  // ---------- painel ----------
+  linhasEl.innerHTML = LINHAS.map((l) => `
+    <li><label class="linha" style="--cor:${l.cor}">
+      <input type="checkbox" checked id="linha-${l.codigo.replace(/\W/g, '-')}" data-linha="${escapar(l.codigo)}">
+      <span class="placa">${escapar(l.codigo)}</span>
+      <span class="linha-texto">
+        <span class="linha-desc">${escapar(tituloBonito(l.descricao))}</span>
+        <span class="linha-qtd" data-qtd="${escapar(l.codigo)}">—</span>
+      </span>
+    </label></li>`).join('');
+  linhasEl.addEventListener('change', (e) => {
+    const l = porCodigo.get(e.target.dataset.linha);
+    if (!l) return;
+    l.visivel = e.target.checked;
+    for (const g of [l.grupoRota, l.grupoOnibus]) l.visivel ? g.addTo(mapa) : g.remove();
+    desenharLista();
+  });
+
+  const geradoEm = new Date(dados.gerado_em);
+  $('#rodape').innerHTML =
+    `Posições: Semob-DF (<a href="${API}/service/gps/operacoes" target="_blank" rel="noopener">sistemas.dftrans.df.gov.br</a>), ` +
+    `consultadas a cada ${INTERVALO_MS / 1000} s. Rotas: GeoServer da Semob, ${fmtData.format(geradoEm)}. ` +
+    `Critério: ${escapar(dados.criterio)}. Distâncias à QI 8 em linha reta.`;
+
+  $('#recolher').addEventListener('click', (e) => {
+    const recolhido = painel.classList.toggle('recolhido');
+    e.currentTarget.setAttribute('aria-expanded', String(!recolhido));
+    e.currentTarget.title = recolhido ? 'Expandir painel' : 'Recolher painel';
+    requestAnimationFrame(() => mapa.invalidateSize());
+  });
+
+  // ---------- veículos ----------
+  const veiculos = new Map();  // número do veículo -> estado
+
+  const deFeature = (f) => ({
+    numero: String(f.properties?.numero ?? ''), linha: f.properties?.linha, operadora: f.properties?.operadora || '',
+    horario: Number(f.properties?.horario), lat: f.geometry?.coordinates?.[1], lon: f.geometry?.coordinates?.[0], direcao: null });
+  const deFeedCompleto = (ops) => ops.flatMap((o) => (o.veiculos || []).map((v) => ({
+    numero: String(v.numero ?? ''), linha: v.linha, operadora: o.operadora?.nome || '', horario: Number(v.horario),
+    lat: v.localizacao?.latitude, lon: v.localizacao?.longitude, direcao: Number.isFinite(v.direcao) ? v.direcao : null })));
+
+  // O feed traz alguns veículos com coordenadas fora do DF (em São Paulo, por exemplo); esses são descartados.
+  const dentroDoDF = (v) => v.lat > -16.1 && v.lat < -15.4 && v.lon > -48.4 && v.lon < -47.2;
+
+  function aplicarLinha(codigo, lista) {
+    const vistos = new Set();
+    for (const novo of lista) {
+      if (!novo.numero || !Number.isFinite(novo.horario) || !dentroDoDF(novo)) continue;
+      vistos.add(novo.numero);
+      const v = veiculos.get(novo.numero);
+      if (!v) { veiculos.set(novo.numero, { ...novo, rumo: novo.direcao }); continue; }
+      // O endpoint por linha não traz o rumo: ele sai do deslocamento entre duas leituras.
+      if (distanciaM(v, novo) > 15) v.rumo = rumoGraus(v, novo);
+      else if (v.rumo == null && novo.direcao != null) v.rumo = novo.direcao;
+      Object.assign(v, { linha: novo.linha, operadora: novo.operadora, horario: novo.horario, lat: novo.lat, lon: novo.lon });
+    }
+    for (const [numero, v] of veiculos) {
+      if (v.linha === codigo && !vistos.has(numero)) { removerMarcador(v); veiculos.delete(numero); }
+    }
+  }
+
+  function removerMarcador(v) {
+    if (v.marcador) { v.grupo.removeLayer(v.marcador); v.marcador = v.grupo = v.chave = null; }
+  }
+
+  function icone(v, cor, antigo, rumo) {
+    return L.divIcon({
+      className: 'marcador-onibus', iconSize: [0, 0], popupAnchor: [0, -42],
+      html: `<div class="onibus${antigo ? ' antigo' : ''}" style="--cor:${cor}">
+               <span class="seta${rumo == null ? ' sem-rumo' : ''}" style="--rumo:${rumo ?? 0}deg"></span>
+               <span class="placa">${escapar(v.linha)}</span></div>` });
+  }
+
+  function conteudoPopup(v) {
+    const l = porCodigo.get(v.linha);
+    return `<span class="placa" style="--cor:${l?.cor ?? '#555'}">${escapar(v.linha)}</span>
+      <p><strong>Veículo ${escapar(v.numero)}</strong><br>${escapar(tituloBonito(v.operadora))}</p>
+      <p>Posição às ${fmtHora.format(v.horario)} (${idadeTexto(Date.now() - v.horario)})<br>
+      ${distanciaTexto(distanciaQI8(v))} da SHIN QI 8, em linha reta</p>`;
+  }
+
+  function desenharVeiculos() {
+    const agora = Date.now();
+    for (const v of veiculos.values()) {
+      const l = porCodigo.get(v.linha);
+      if (!l || agora - v.horario > OCULTO_MS) { removerMarcador(v); continue; }
+      const antigo = agora - v.horario > ANTIGO_MS;
+      const rumo = v.rumo == null ? null : Math.round(v.rumo / 5) * 5;
+      const chave = `${v.linha}|${antigo}|${rumo}`;
+      if (v.marcador && v.grupo !== l.grupoOnibus) removerMarcador(v);
+      if (!v.marcador) {
+        v.marcador = L.marker([v.lat, v.lon], { icon: icone(v, l.cor, antigo, rumo), title: `Linha ${v.linha}, veículo ${v.numero}`, riseOnHover: true })
+          .bindPopup(() => conteudoPopup(v));
+        v.grupo = l.grupoOnibus;
+        v.grupo.addLayer(v.marcador);
+      } else {
+        v.marcador.setLatLng([v.lat, v.lon]);
+        if (v.chave !== chave) v.marcador.setIcon(icone(v, l.cor, antigo, rumo));
+        if (v.marcador.isPopupOpen()) v.marcador.getPopup().update();
+      }
+      v.chave = chave;
+      v.marcador.setZIndexOffset(antigo ? 0 : 1000);
+    }
+  }
+
+  function desenharLista() {
+    const agora = Date.now();
+    const ativos = [...veiculos.values()].filter((v) => porCodigo.has(v.linha) && agora - v.horario <= OCULTO_MS);
+    for (const l of LINHAS) {
+      const n = ativos.filter((v) => v.linha === l.codigo).length;
+      linhasEl.querySelector(`[data-qtd="${CSS.escape(l.codigo)}"]`).textContent =
+        l.falhou ? 'sem resposta da Semob nesta rodada' : n === 0 ? 'nenhum ônibus agora' : `${n} ônibus agora`;
+    }
+    const visiveis = ativos.filter((v) => porCodigo.get(v.linha).visivel)
+      .sort((a, b) => ordem(a.linha) - ordem(b.linha) || distanciaQI8(a) - distanciaQI8(b));
+    veiculosEl.innerHTML = visiveis.map((v) => `
+      <li><button type="button" class="veiculo${agora - v.horario > ANTIGO_MS ? ' antigo' : ''}" data-numero="${escapar(v.numero)}" style="--cor:${porCodigo.get(v.linha).cor}">
+        <span class="placa">${escapar(v.linha)}</span>
+        <span><strong>${distanciaTexto(distanciaQI8(v))} da QI 8</strong>
+        <small>veículo ${escapar(v.numero)} · ${idadeTexto(agora - v.horario)}</small></span>
+      </button></li>`).join('');
+    $('#vazio').hidden = visiveis.length > 0;
+  }
+
+  veiculosEl.addEventListener('click', (e) => {
+    const v = veiculos.get(e.target.closest('.veiculo')?.dataset.numero);
+    if (!v?.marcador) return;
+    const zoom = Math.max(mapa.getZoom(), 16);
+    movimentoReduzido ? mapa.setView([v.lat, v.lon], zoom) : mapa.flyTo([v.lat, v.lon], zoom, { duration: .8 });
+    v.marcador.openPopup();
+  });
+
+  // ---------- consulta periódica ----------
+  let timer = null, emAndamento = false, ultimoSucesso = null, proximaEm = null, estado = 'carregando', motivo = '';
+
+  async function obterJson(url) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TEMPO_LIMITE_MS);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+      if (!r.ok) throw new Error(`a Semob respondeu HTTP ${r.status}`);
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+  function descreverErro(e) {
+    if (e?.name === 'AbortError') return `a Semob não respondeu em ${TEMPO_LIMITE_MS / 1000} s`;
+    if (e instanceof TypeError) return 'sem conexão com o servidor da Semob';
+    return e?.message || String(e);
+  }
+
+  async function ciclo() {
+    if (emAndamento) return;
+    emAndamento = true;
+    clearTimeout(timer);
+    botaoAtualizar.disabled = true;
+    try {
+      const resultados = await Promise.allSettled(LINHAS.map((l) =>
+        obterJson(`${API}/gps/linha/${encodeURIComponent(l.codigo)}/geo/recent`)));
+      const obtidos = new Map();
+      let erro = null;
+      resultados.forEach((r, i) => {
+        if (r.status === 'fulfilled' && Array.isArray(r.value?.features)) obtidos.set(LINHAS[i].codigo, r.value.features.map(deFeature));
+        else erro ??= r.reason ?? new Error('resposta inesperada da Semob');
+      });
+      // Se nenhuma consulta por linha funcionou, tenta o feed completo (~400 KB, todas as linhas do DF).
+      if (obtidos.size === 0) {
+        try {
+          const todos = deFeedCompleto(await obterJson(`${API}/service/gps/operacoes`));
+          for (const l of LINHAS) obtidos.set(l.codigo, todos.filter((v) => v.linha === l.codigo));
+          erro = null;
+        } catch (e) { erro ??= e; }
+      }
+      for (const l of LINHAS) l.falhou = !obtidos.has(l.codigo);
+      for (const [codigo, lista] of obtidos) aplicarLinha(codigo, lista);
+      if (obtidos.size) ultimoSucesso = Date.now();
+      estado = obtidos.size === 0 ? 'erro' : obtidos.size < LINHAS.length ? 'parcial' : 'ok';
+      motivo = erro ? descreverErro(erro) : '';
+      desenharVeiculos();
+      desenharLista();
+    } finally {
+      emAndamento = false;
+      botaoAtualizar.disabled = false;
+      proximaEm = Date.now() + INTERVALO_MS;
+      if (!document.hidden) timer = setTimeout(ciclo, INTERVALO_MS);
+      desenharStatus();
+    }
+  }
+
+  function desenharStatus() {
+    statusEl.dataset.estado = estado;
+    if (estado === 'carregando') return;
+    const segundos = Math.max(0, Math.ceil((proximaEm - Date.now()) / 1000));
+    const hora = ultimoSucesso ? fmtHora.format(ultimoSucesso) : null;
+    if (estado === 'ok') statusTexto.textContent = `Atualizado às ${hora} · próxima em ${segundos} s`;
+    else if (estado === 'parcial') {
+      const quais = LINHAS.filter((l) => l.falhou).map((l) => l.codigo);
+      statusTexto.textContent = `${quais.length > 1 ? 'Linhas' : 'Linha'} ${quais.join(', ')} sem resposta (${motivo}). ` +
+        `Demais atualizadas às ${hora} · próxima em ${segundos} s`;
+    } else statusTexto.textContent = `Falha: ${motivo}. ` +
+      (hora ? `Mostrando posições de ${hora} · ` : '') + `nova tentativa em ${segundos} s`;
+  }
+
+  let tique = 0;
+  setInterval(() => {
+    if (document.hidden) return;
+    desenharStatus();
+    if (++tique % 5 === 0) { desenharVeiculos(); desenharLista(); }
+  }, 1000);
+
+  botaoAtualizar.addEventListener('click', ciclo);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { clearTimeout(timer); timer = null; } else ciclo();
+  });
+  ciclo();
+})();
+</script>
+</body>
+</html>
