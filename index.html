@@ -127,6 +127,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .linha-texto { min-width: 0; }
 .linha-desc { display: block; font-size: .86rem; line-height: 1.3; }
 .linha-qtd { display: block; margin-top: 2px; font-size: .8rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+.linha-partida { display: block; margin-top: 2px; font-size: .8rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+.linha-partida strong { color: var(--texto); font-weight: 600; }
 
 #veiculos { display: grid; gap: 6px; margin-top: 8px; }
 .veiculo {
@@ -347,6 +349,38 @@ ul { list-style: none; margin: 0; padding: 0; }
 
   $('#enquadrar').addEventListener('click', enquadrar);
 
+  // ---------- próxima partida ----------
+  // Horários programados pela Semob, em Brasília (UTC-3). dias: "SSSSSNN" = segunda a domingo.
+  const DATA_BRT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const HORA_BRT = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const DIA_BRT = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+
+  function proximaPartida(horarios, agora) {
+    const [a, m, dia] = DATA_BRT.format(agora).split('-').map(Number);
+    for (let d = 0; d <= 7; d++) {
+      const base = new Date(Date.UTC(a, m - 1, dia + d));  // Date.UTC corrige estouros de mês
+      const data = base.toISOString().slice(0, 10);
+      const posicao = (base.getUTCDay() + 6) % 7;          // 0 = segunda-feira
+      for (const [hora, dias, inicio, fim] of horarios) {
+        if (dias[posicao] !== 'S' || data < inicio || (fim && data > fim)) continue;
+        const [h, min] = hora.trim().split(':').map(Number);
+        const t = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), h, min) + 3 * 3600e3;
+        if (t >= agora) return { t, dias: d };
+      }
+    }
+    return null;
+  }
+
+  function textoPartida(l, agora) {
+    const origem = escapar(tituloBonito(l.descricao.split(' / ')[0]));
+    const p = proximaPartida(l.horarios, agora);
+    if (!p) return `Sem partida programada nos próximos 7 dias`;
+    const faltam = Math.round((p.t - agora) / 60e3);
+    const quando = faltam < 180 ? ` (em ${faltam} min)` : '';
+    const dia = p.dias === 0 ? '' : ` · ${DIA_BRT.format(p.t)}`;
+    return `Próxima saída de ${origem}: <strong>${HORA_BRT.format(p.t)}</strong>${quando}${dia}`;
+  }
+
   // ---------- painel ----------
   linhasEl.innerHTML = LINHAS.map((l) => `
     <li><label class="linha" style="--cor:${l.cor}">
@@ -355,6 +389,7 @@ ul { list-style: none; margin: 0; padding: 0; }
       <span class="linha-texto">
         <span class="linha-desc">${escapar(tituloBonito(l.descricao))}</span>
         <span class="linha-qtd" data-qtd="${escapar(l.codigo)}">—</span>
+        <span class="linha-partida" data-partida="${escapar(l.codigo)}">—</span>
       </span>
     </label></li>`).join('');
   linhasEl.addEventListener('change', (e) => {
@@ -460,6 +495,7 @@ ul { list-style: none; margin: 0; padding: 0; }
       const n = ativos.filter((v) => v.linha === l.codigo).length;
       linhasEl.querySelector(`[data-qtd="${CSS.escape(l.codigo)}"]`).textContent =
         l.falhou ? 'sem resposta da Semob nesta rodada' : n === 0 ? 'nenhum ônibus agora' : `${n} ônibus agora`;
+      linhasEl.querySelector(`[data-partida="${CSS.escape(l.codigo)}"]`).innerHTML = textoPartida(l, agora);
     }
     const visiveis = ativos.filter((v) => porCodigo.get(v.linha).visivel)
       .sort((a, b) => ordem(a.linha) - ordem(b.linha) || distanciaRef(a) - distanciaRef(b));
