@@ -1,9 +1,13 @@
-# Ônibus W3 Norte · SHIN QI 8
+# Ônibus W3 Norte · SHIN QI 8 / QI 6
 
 Mapa com a posição ao vivo dos ônibus que passam pela **W3 Norte** e pela
 **EPPN em frente à SHIN QI 8** (Lago Norte, Brasília). Cada ônibus aparece com
-o número da linha e um "bico" indicando o rumo, que é calculado pelo
-deslocamento entre duas leituras.
+o número da linha e uma seta apontando o sentido do movimento, calculado pelo
+deslocamento entre duas leituras. Enquanto não houver duas leituras, a seta
+fica cinza e sem direção.
+
+O mapa destaca a parada da **SHIN QI 6** como referência; as distâncias são
+medidas até ela. A escolha das linhas continua baseada na QI 8.
 
 ## Linhas
 
@@ -70,5 +74,5 @@ endereço ou de formato sem aviso.
   Veículos sem linha informada no feed não podem ser atribuídos.
 - A posição é a última que o ônibus transmitiu. Leituras com mais de 3 minutos
   aparecem esmaecidas; com mais de 30 minutos, somem.
-- A distância até a QI 8 mostrada no painel é em linha reta, não pelo
+- A distância até a QI 6 mostrada no painel é em linha reta, não pelo
   itinerário.

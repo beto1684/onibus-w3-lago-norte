@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ônibus W3 Norte · QI 8</title>
+<title>Ônibus W3 Norte · QI 6</title>
 <meta name="description" content="Posição ao vivo dos ônibus que passam pela W3 Norte e pela EPPN em frente à SHIN QI 8, no Lago Norte (Brasília).">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -143,30 +143,26 @@ ul { list-style: none; margin: 0; padding: 0; }
 .rodape { margin: 0; font-size: .76rem; line-height: 1.45; color: var(--suave); }
 .rodape a { color: var(--destaque); }
 
-/* Marcadores no mapa: ponto com "bico" apontando o rumo, placa da linha acima. */
+/* Marcadores no mapa: seta no sentido do movimento, placa da linha acima. */
 .marcador-onibus { background: none; border: 0; }
 .onibus { position: relative; }
 .onibus .seta {
-  position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; box-sizing: border-box;
-  border-radius: 50%; background: var(--cor); border: 2px solid var(--marcador-borda);
-  box-shadow: 0 1px 4px rgb(0 0 0 / .45); transform: rotate(var(--rumo));
+  position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; overflow: visible;
+  transform: rotate(var(--rumo)); filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5));
 }
-.onibus .seta::after {
-  content: ""; position: absolute; left: 50%; top: -9px; transform: translateX(-50%);
-  border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--cor);
-}
-.onibus .seta.sem-rumo::after { display: none; }
+.onibus .seta path { fill: var(--cor); stroke: var(--marcador-borda); stroke-width: 1.8; stroke-linejoin: round; }
+.onibus .seta.sem-rumo path { fill: var(--suave); }
 .onibus .placa {
-  position: absolute; left: 0; bottom: 21px; transform: translateX(-50%); white-space: nowrap; min-width: 0;
+  position: absolute; left: 0; bottom: 30px; transform: translateX(-50%); white-space: nowrap; min-width: 0;
   font-size: .95rem; border: 1.5px solid var(--marcador-borda); box-shadow: 0 1px 4px rgb(0 0 0 / .45);
 }
 .onibus.antigo { opacity: .5; }
 
-.rotulo-qi8 {
+.rotulo-ref {
   background: var(--letreiro-fundo); color: var(--letreiro-texto); border: 0; border-radius: 4px;
   font: 700 .85rem/1 var(--fonte-placa); letter-spacing: .06em; padding: 5px 7px; box-shadow: var(--sombra);
 }
-.rotulo-qi8::before { border-right-color: var(--letreiro-fundo); }
+.rotulo-ref::before { border-right-color: var(--letreiro-fundo); }
 
 .leaflet-container { font-family: var(--fonte); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--superficie); color: var(--texto); }
@@ -203,7 +199,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 <aside id="painel" aria-label="Linhas e ônibus">
   <header class="letreiro">
     <div>
-      <h1>W3 Norte · SHIN QI 8</h1>
+      <h1>W3 Norte · SHIN QI 6</h1>
       <p>Ônibus ao vivo</p>
     </div>
     <button id="recolher" class="recolher" type="button" aria-expanded="true" aria-controls="rolagem" title="Recolher painel"><span aria-hidden="true">▾</span></button>
@@ -295,8 +291,8 @@ ul { list-style: none; margin: 0; padding: 0; }
   const LINHAS = dados.linhas.map((l, i) => ({ ...l, cor: CORES[i % CORES.length], visivel: true, falhou: false }));
   const porCodigo = new Map(LINHAS.map((l) => [l.codigo, l]));
   const ordem = (codigo) => LINHAS.findIndex((l) => l.codigo === codigo);
-  const QI8 = dados.paradas_qi8;
-  const distanciaQI8 = (v) => Math.min(...QI8.map((p) => distanciaM(v, p)));
+  const REF = dados.paradas_qi6;
+  const distanciaRef = (v) => Math.min(...REF.map((p) => distanciaM(v, p)));
 
   const mapa = L.map('mapa', { zoomControl: false });
   // A vista precisa existir antes de qualquer camada: um vetor adicionado antes do "load" cria o
@@ -340,13 +336,13 @@ ul { list-style: none; margin: 0; padding: 0; }
     }
   });
 
-  // Rótulo da QI 8 abaixo dos ônibus (o painel padrão de tooltips fica acima dos marcadores e os esconderia).
+  // Rótulo da QI 6 abaixo dos ônibus (o painel padrão de tooltips fica acima dos marcadores e os esconderia).
   mapa.createPane('rotulos').style.zIndex = 590;
-  QI8.forEach((p, i) => {
+  REF.forEach((p, i) => {
     const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: '#15202b', weight: 2, fillColor: '#ffd43b', fillOpacity: 1 })
       .bindPopup(`<strong>Parada ${escapar(p.codigo)}</strong><p>${escapar(p.descricao)}</p>`)
       .addTo(mapa);
-    if (i === 0) m.bindTooltip('SHIN QI 8', { permanent: true, direction: 'right', offset: [8, 0], className: 'rotulo-qi8', pane: 'rotulos' });
+    if (i === 0) m.bindTooltip('SHIN QI 6', { permanent: true, direction: 'right', offset: [8, 0], className: 'rotulo-ref', pane: 'rotulos' });
   });
 
   $('#enquadrar').addEventListener('click', enquadrar);
@@ -373,7 +369,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   $('#rodape').innerHTML =
     `Posições: Semob-DF (<a href="${API}/service/gps/operacoes" target="_blank" rel="noopener">sistemas.dftrans.df.gov.br</a>), ` +
     `consultadas a cada ${INTERVALO_MS / 1000} s. Rotas: GeoServer da Semob, ${fmtData.format(geradoEm)}. ` +
-    `Critério: ${escapar(dados.criterio)}. Distâncias à QI 8 em linha reta.`;
+    `Critério: ${escapar(dados.criterio)}. Distâncias à QI 6 em linha reta.`;
 
   $('#recolher').addEventListener('click', (e) => {
     const recolhido = painel.classList.toggle('recolhido');
@@ -418,9 +414,10 @@ ul { list-style: none; margin: 0; padding: 0; }
 
   function icone(v, cor, antigo, rumo) {
     return L.divIcon({
-      className: 'marcador-onibus', iconSize: [0, 0], popupAnchor: [0, -42],
+      className: 'marcador-onibus', iconSize: [0, 0], popupAnchor: [0, -50],
       html: `<div class="onibus${antigo ? ' antigo' : ''}" style="--cor:${cor}">
-               <span class="seta${rumo == null ? ' sem-rumo' : ''}" style="--rumo:${rumo ?? 0}deg"></span>
+               <svg class="seta${rumo == null ? ' sem-rumo' : ''}" viewBox="0 0 28 28" style="--rumo:${rumo ?? 0}deg">
+                 <path d="M14 3 L24 24 L14 18.5 L4 24 Z"/></svg>
                <span class="placa">${escapar(v.linha)}</span></div>` });
   }
 
@@ -429,7 +426,7 @@ ul { list-style: none; margin: 0; padding: 0; }
     return `<span class="placa" style="--cor:${l?.cor ?? '#555'}">${escapar(v.linha)}</span>
       <p><strong>Veículo ${escapar(v.numero)}</strong><br>${escapar(tituloBonito(v.operadora))}</p>
       <p>Posição às ${fmtHora.format(v.horario)} (${idadeTexto(Date.now() - v.horario)})<br>
-      ${distanciaTexto(distanciaQI8(v))} da SHIN QI 8, em linha reta</p>`;
+      ${distanciaTexto(distanciaRef(v))} da SHIN QI 6, em linha reta</p>`;
   }
 
   function desenharVeiculos() {
@@ -442,7 +439,7 @@ ul { list-style: none; margin: 0; padding: 0; }
       const chave = `${v.linha}|${antigo}|${rumo}`;
       if (v.marcador && v.grupo !== l.grupoOnibus) removerMarcador(v);
       if (!v.marcador) {
-        v.marcador = L.marker([v.lat, v.lon], { icon: icone(v, l.cor, antigo, rumo), title: `Linha ${v.linha}, veículo ${v.numero}`, riseOnHover: true })
+        v.marcador = L.marker([v.lat, v.lon], { icon: icone(v, l.cor, antigo, rumo), title: `Linha ${v.linha}, veículo ${v.numero}${rumo == null ? ' (sentido ainda desconhecido)' : ''}`, riseOnHover: true })
           .bindPopup(() => conteudoPopup(v));
         v.grupo = l.grupoOnibus;
         v.grupo.addLayer(v.marcador);
@@ -465,11 +462,11 @@ ul { list-style: none; margin: 0; padding: 0; }
         l.falhou ? 'sem resposta da Semob nesta rodada' : n === 0 ? 'nenhum ônibus agora' : `${n} ônibus agora`;
     }
     const visiveis = ativos.filter((v) => porCodigo.get(v.linha).visivel)
-      .sort((a, b) => ordem(a.linha) - ordem(b.linha) || distanciaQI8(a) - distanciaQI8(b));
+      .sort((a, b) => ordem(a.linha) - ordem(b.linha) || distanciaRef(a) - distanciaRef(b));
     veiculosEl.innerHTML = visiveis.map((v) => `
       <li><button type="button" class="veiculo${agora - v.horario > ANTIGO_MS ? ' antigo' : ''}" data-numero="${escapar(v.numero)}" style="--cor:${porCodigo.get(v.linha).cor}">
         <span class="placa">${escapar(v.linha)}</span>
-        <span><strong>${distanciaTexto(distanciaQI8(v))} da QI 8</strong>
+        <span><strong>${distanciaTexto(distanciaRef(v))} da QI 6</strong>
         <small>veículo ${escapar(v.numero)} · ${idadeTexto(agora - v.horario)}</small></span>
       </button></li>`).join('');
     $('#vazio').hidden = visiveis.length > 0;

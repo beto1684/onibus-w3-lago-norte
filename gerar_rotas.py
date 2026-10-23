@@ -24,6 +24,7 @@ CAMADA_ROTAS = "semob:percuso das linhas"  # sic: é o nome da camada no GeoServ
 GEOM_ROTAS = "geo_linhas_lin_31983"
 CAMADA_PARADAS = "semob:Paradas de onibus"
 PARADAS_QI8 = ("2295", "2296")
+PARADAS_QI6 = ("2293", "2294")  # só para exibição: o mapa mostra a QI 6 como referência
 RAIO_M = 35
 MIN_PARADAS_W3 = 3
 TOLERANCIA_SIMPLIFICACAO_M = 4
@@ -120,15 +121,17 @@ def main():
         linha["itinerarios"].append({"sentido": p["lin_sentido"], "paradas_w3": aprovadas[chave],
                                      "trechos": [simplificar(t, TOLERANCIA_SIMPLIFICACAO_M) for t in partes(f["geometry"])]})
 
-    paradas = [{"codigo": p["properties"]["parada"], "descricao": " ".join(p["properties"]["descricao"].split()),
-                "lat": round(p["geometry"]["coordinates"][1], 6), "lon": round(p["geometry"]["coordinates"][0], 6)}
-               for p in wfs(CAMADA_PARADAS, f"parada IN ({lista_cql(PARADAS_QI8)})", srs="EPSG:4326")]
+    def paradas_em(codigos_parada):
+        return [{"codigo": p["properties"]["parada"], "descricao": " ".join(p["properties"]["descricao"].split()),
+                 "lat": round(p["geometry"]["coordinates"][1], 6), "lon": round(p["geometry"]["coordinates"][0], 6)}
+                for p in wfs(CAMADA_PARADAS, f"parada IN ({lista_cql(codigos_parada)})", srs="EPSG:4326")]
 
     dados = {"gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
              "criterio": f"itinerário a até {RAIO_M} m das paradas {' e '.join(PARADAS_QI8)} (SHIN QI 08, EPPN) "
                          f"e de pelo menos {MIN_PARADAS_W3} paradas da W3 Norte",
              "linhas": [linhas[c] for c in codigos if c in linhas],
-             "paradas_qi8": paradas}
+             "paradas_qi8": paradas_em(PARADAS_QI8),
+             "paradas_qi6": paradas_em(PARADAS_QI6)}
     SAIDA.write_text("// Gerado por gerar_rotas.py a partir do GeoServer da Semob-DF. Não editar à mão.\n"
                      "window.DADOS_ROTAS = " + json.dumps(dados, ensure_ascii=False, separators=(",", ":")) + ";\n",
                      encoding="utf-8")
