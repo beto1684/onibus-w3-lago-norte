@@ -6,8 +6,12 @@ o número da linha e uma seta apontando o sentido do movimento, calculado pelo
 deslocamento entre duas leituras. Enquanto não houver duas leituras, a seta
 fica cinza e sem direção.
 
-O mapa destaca a parada da **SHIN QI 6** como referência; as distâncias são
-medidas até ela. A escolha das linhas continua baseada na QI 8.
+O mapa destaca a parada 2293 ("SHIN APOS ENTRADA DA QI/QL 06 EPPN"), rotulada
+**SHIN QI 6**. Para cada linha, o painel mostra quantos ônibus estão em trânsito
+e a próxima saída programada da origem (o primeiro trecho do percurso). Um
+pedestre marca onde você está, pelo GPS do celular; a posição só serve para
+desenhar o pedestre e não sai do aparelho. A escolha das linhas continua
+baseada na QI 8.
 
 ## Linhas
 
@@ -64,6 +68,7 @@ mão. Os limiares (`RAIO_M`, `MIN_PARADAS_W3`) e as paradas de referência
 | Posição de toda a frota (reserva, ~400 KB) | `https://www.sistemas.dftrans.df.gov.br/service/gps/operacoes` |
 | Itinerários georreferenciados | GeoServer da Semob, camada `semob:percuso das linhas` (WFS, EPSG:31983) |
 | Paradas | GeoServer da Semob, camada `semob:Paradas de onibus` |
+| Horários programados | GeoServer da Semob, camada `semob:Horários das Linhas` (copiados para `rotas.js`, porque o GeoServer não libera leitura pelo navegador) |
 
 Não encontrei documentação oficial dos serviços de posição: podem mudar de
 endereço ou de formato sem aviso.
@@ -74,5 +79,11 @@ endereço ou de formato sem aviso.
   Veículos sem linha informada no feed não podem ser atribuídos.
 - A posição é a última que o ônibus transmitiu. Leituras com mais de 3 minutos
   aparecem esmaecidas; com mais de 30 minutos, somem.
-- A distância até a QI 6 mostrada no painel é em linha reta, não pelo
-  itinerário.
+- A próxima saída é a do horário programado, não a do ônibus real. A tabela
+  da Semob não diz em que parada a viagem começa; o site assume o primeiro
+  terminal do percurso. Feriados não são tratados. A 136.2 tem poucas viagens
+  programadas (nenhuma no domingo).
+- Os horários ficam congelados em `rotas.js`: rode `gerar_rotas.py` de novo
+  quando a Semob mudar a tabela.
+- O pedestre só aparece se o navegador tiver permissão de localização; se ela
+  for negada, o botão do pedestre fica apagado.

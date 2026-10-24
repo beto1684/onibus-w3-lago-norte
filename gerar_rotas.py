@@ -25,7 +25,8 @@ GEOM_ROTAS = "geo_linhas_lin_31983"
 CAMADA_PARADAS = "semob:Paradas de onibus"
 CAMADA_HORARIOS = "semob:Horários das Linhas"
 PARADAS_QI8 = ("2295", "2296")
-PARADAS_QI6 = ("2293", "2294")  # só para exibição: o mapa mostra a QI 6 como referência
+PARADA_REFERENCIA = "2293"  # só para exibição: "SHIN APOS ENTRADA DA QI/QL 06 EPPN"
+ROTULO_REFERENCIA = "SHIN QI 6"
 RAIO_M = 35
 MIN_PARADAS_W3 = 3
 TOLERANCIA_SIMPLIFICACAO_M = 4
@@ -140,7 +141,7 @@ def main():
              "criterio": f"passa em frente à SHIN QI 8 (EPPN) e percorre pelo menos {MIN_PARADAS_W3} "
                          f"paradas da W3 Norte",
              "linhas": [linhas[c] for c in codigos if c in linhas],
-             "paradas_qi6": paradas_em(PARADAS_QI6)}
+             "parada_referencia": {**paradas_em((PARADA_REFERENCIA,))[0], "rotulo": ROTULO_REFERENCIA}}
     SAIDA.write_text("// Gerado por gerar_rotas.py a partir do GeoServer da Semob-DF. Não editar à mão.\n"
                      "window.DADOS_ROTAS = " + json.dumps(dados, ensure_ascii=False, separators=(",", ":")) + ";\n",
                      encoding="utf-8")

@@ -28,6 +28,8 @@
   --letreiro-suave: #b98516;
   --placa-texto: #ffffff;
   --marcador-borda: #ffffff;
+  --pedestre-fundo: #ffffff;
+  --pedestre-figura: #14171a;
   --fonte: "Barlow", "Segoe UI", system-ui, sans-serif;
   --fonte-placa: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
 }
@@ -103,7 +105,7 @@ body { background: var(--fundo); color: var(--texto); font: 15px/1.4 var(--fonte
 }
 .botao:hover { border-color: var(--destaque); color: var(--destaque); }
 .botao:disabled { opacity: .5; cursor: progress; }
-:is(.botao, .recolher, .veiculo, .linha input):focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
+:is(.botao, .recolher, .botao-gps, .linha input):focus-visible { outline: 2px solid var(--destaque); outline-offset: 2px; }
 
 .rolagem { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 16px; padding-block: 12px 14px; padding-inline: 16px; }
 .cabecalho-secao { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -124,23 +126,13 @@ ul { list-style: none; margin: 0; padding: 0; }
 #linhas li:last-child .linha { border-bottom: 0; }
 .linha input { width: 18px; height: 18px; margin: 0; accent-color: var(--cor); }
 .linha:has(input:not(:checked)) { opacity: .5; }
+.linha-placa { display: grid; justify-items: center; gap: 5px; }
+.em-transito { font-size: .74rem; line-height: 1; color: var(--suave); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.em-transito strong { color: var(--texto); font-weight: 600; }
 .linha-texto { min-width: 0; }
-.linha-desc { display: block; font-size: .86rem; line-height: 1.3; }
-.linha-qtd { display: block; margin-top: 2px; font-size: .8rem; color: var(--suave); font-variant-numeric: tabular-nums; }
-.linha-partida { display: block; margin-top: 2px; font-size: .8rem; color: var(--suave); font-variant-numeric: tabular-nums; }
-.linha-partida strong { color: var(--texto); font-weight: 600; }
-
-#veiculos { display: grid; gap: 6px; margin-top: 8px; }
-.veiculo {
-  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; width: 100%;
-  padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px; background: none;
-  color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-.veiculo:hover { border-color: var(--cor); }
-.veiculo.antigo { opacity: .6; }
-.veiculo strong { display: block; font-weight: 600; font-variant-numeric: tabular-nums; }
-.veiculo small { display: block; color: var(--suave); font-size: .8rem; font-variant-numeric: tabular-nums; }
-.vazio { margin: 8px 0 0; color: var(--suave); font-size: .86rem; }
+.linha-partida { display: block; font-size: 1rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.linha-partida strong { font-size: 1.12rem; font-weight: 600; }
+.linha-desc { display: block; margin-top: 3px; font-size: .74rem; line-height: 1.3; color: var(--suave); }
 
 .rodape { margin: 0; font-size: .76rem; line-height: 1.45; color: var(--suave); }
 .rodape a { color: var(--destaque); }
@@ -165,6 +157,21 @@ ul { list-style: none; margin: 0; padding: 0; }
   font: 700 .85rem/1 var(--fonte-placa); letter-spacing: .06em; padding: 5px 7px; box-shadow: var(--sombra);
 }
 .rotulo-ref::before { border-right-color: var(--letreiro-fundo); }
+
+/* Onde estou: pedestre num disco branco, como placa de travessia; círculo claro = precisão do GPS. */
+.marcador-pedestre { background: none; border: 0; }
+.pedestre {
+  position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--pedestre-fundo); color: var(--pedestre-figura);
+  border: 2px solid var(--pedestre-figura); box-shadow: 0 1px 4px rgb(0 0 0 / .45);
+}
+.figura-pedestre { width: 17px; height: 17px; }
+.figura-pedestre circle { fill: currentColor; }
+.figura-pedestre path { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.precisao-gps { stroke: var(--destaque); stroke-opacity: .5; stroke-width: 1; fill: var(--destaque); fill-opacity: .08; }
+.leaflet-bar a.botao-gps { display: grid; place-items: center; color: var(--texto); }
+.botao-gps.negado { opacity: .4; }
 
 .leaflet-container { font-family: var(--fonte); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--superficie); color: var(--texto); }
@@ -198,7 +205,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 <body>
 <div id="mapa" aria-label="Mapa com a posição dos ônibus"></div>
 
-<aside id="painel" aria-label="Linhas e ônibus">
+<aside id="painel" aria-label="Linhas">
   <header class="letreiro">
     <div>
       <h1>W3 Norte · SHIN QI 6</h1>
@@ -222,12 +229,6 @@ ul { list-style: none; margin: 0; padding: 0; }
       <ul id="linhas"></ul>
     </section>
 
-    <section>
-      <h2>Ônibus agora</h2>
-      <ul id="veiculos"></ul>
-      <p id="vazio" class="vazio" hidden>Nenhum ônibus dessas linhas transmitindo posição agora.</p>
-    </section>
-
     <p id="rodape" class="rodape"></p>
   </div>
 </aside>
@@ -247,7 +248,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
   const $ = (s) => document.querySelector(s);
   const painel = $('#painel'), statusEl = $('#status'), statusTexto = $('#status-texto');
-  const botaoAtualizar = $('#atualizar'), linhasEl = $('#linhas'), veiculosEl = $('#veiculos');
+  const botaoAtualizar = $('#atualizar'), linhasEl = $('#linhas');
 
   const dados = window.DADOS_ROTAS;
   if (!dados || !window.L) {
@@ -279,8 +280,6 @@ ul { list-style: none; margin: 0; padding: 0; }
     /\d/.test(p) ? p.toUpperCase() : (i && MINUSCULAS.has(p)) ? p : p.replace(/\p{L}/u, (c) => c.toUpperCase())).join(' ');
   const fmtHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo' });
   const fmtData = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' });
-  const fmtKm = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const distanciaTexto = (m) => m < 1000 ? `${Math.round(m / 10) * 10} m` : `${fmtKm.format(m / 1000)} km`;
   function idadeTexto(ms) {
     const s = Math.max(0, Math.round(ms / 1000));
     if (s < 60) return `há ${s} s`;
@@ -292,9 +291,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   // ---------- linhas e mapa ----------
   const LINHAS = dados.linhas.map((l, i) => ({ ...l, cor: CORES[i % CORES.length], visivel: true, falhou: false }));
   const porCodigo = new Map(LINHAS.map((l) => [l.codigo, l]));
-  const ordem = (codigo) => LINHAS.findIndex((l) => l.codigo === codigo);
-  const REF = dados.paradas_qi6;
-  const distanciaRef = (v) => Math.min(...REF.map((p) => distanciaM(v, p)));
+  const REF = dados.parada_referencia;
 
   const mapa = L.map('mapa', { zoomControl: false });
   // A vista precisa existir antes de qualquer camada: um vetor adicionado antes do "load" cria o
@@ -338,16 +335,70 @@ ul { list-style: none; margin: 0; padding: 0; }
     }
   });
 
-  // Rótulo da QI 6 abaixo dos ônibus (o painel padrão de tooltips fica acima dos marcadores e os esconderia).
+  // Rótulo da parada abaixo dos ônibus (o painel padrão de tooltips fica acima dos marcadores e os esconderia).
   mapa.createPane('rotulos').style.zIndex = 590;
-  REF.forEach((p, i) => {
-    const m = L.circleMarker([p.lat, p.lon], { radius: 6, color: '#15202b', weight: 2, fillColor: '#ffd43b', fillOpacity: 1 })
-      .bindPopup(`<strong>Parada ${escapar(p.codigo)}</strong><p>${escapar(p.descricao)}</p>`)
-      .addTo(mapa);
-    if (i === 0) m.bindTooltip('SHIN QI 6', { permanent: true, direction: 'right', offset: [8, 0], className: 'rotulo-ref', pane: 'rotulos' });
-  });
+  L.circleMarker([REF.lat, REF.lon], { radius: 6, color: '#15202b', weight: 2, fillColor: '#ffd43b', fillOpacity: 1 })
+    .bindPopup(`<strong>Parada ${escapar(REF.codigo)}</strong><p>${escapar(REF.descricao)}</p>`)
+    .bindTooltip(escapar(REF.rotulo), { permanent: true, direction: 'right', offset: [8, 0], className: 'rotulo-ref', pane: 'rotulos' })
+    .addTo(mapa);
 
   $('#enquadrar').addEventListener('click', enquadrar);
+
+  // ---------- onde estou (GPS) ----------
+  // A posição fica só no aparelho: serve apenas para desenhar o pedestre.
+  const FIGURA_PEDESTRE = `<svg class="figura-pedestre" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="13.5" cy="4" r="2.3"/>
+      <path d="M12.5 8 L11 14 M12.3 9 L8.6 11.6 M12.3 9 L15.8 12 M11 14 L8 20.5 M11 14 L14.2 17 L15.2 21"/></svg>`;
+  const pedestre = L.marker([0, 0], {
+    icon: L.divIcon({ className: 'marcador-pedestre', iconSize: [0, 0], html: `<div class="pedestre">${FIGURA_PEDESTRE}</div>` }),
+    title: 'Você está aqui', keyboard: false, zIndexOffset: 500 });
+  const precisao = L.circle([0, 0], { radius: 1, className: 'precisao-gps', interactive: false });
+  let minhaPosicao = null, centralizarAoObter = false, vigiaGps = null;
+
+  const ControleGps = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      const a = L.DomUtil.create('a', 'botao-gps', div);
+      a.href = '#';
+      a.setAttribute('role', 'button');
+      a.setAttribute('aria-label', 'Mostrar onde estou');
+      a.title = 'Mostrar onde estou';
+      a.innerHTML = FIGURA_PEDESTRE;
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.on(a, 'click', (e) => { L.DomEvent.preventDefault(e); irParaMim(); });
+      this.botao = a;
+      return div;
+    },
+  });
+  const controleGps = new ControleGps().addTo(mapa);
+
+  function irParaMim() {
+    if (!minhaPosicao) { centralizarAoObter = true; iniciarGps(); return; }
+    const zoom = Math.max(mapa.getZoom(), 16);
+    movimentoReduzido ? mapa.setView(minhaPosicao, zoom) : mapa.flyTo(minhaPosicao, zoom, { duration: .8 });
+  }
+
+  function iniciarGps() {
+    if (!('geolocation' in navigator) || vigiaGps != null) return;
+    vigiaGps = navigator.geolocation.watchPosition((pos) => {
+      minhaPosicao = [pos.coords.latitude, pos.coords.longitude];
+      pedestre.setLatLng(minhaPosicao);
+      precisao.setLatLng(minhaPosicao).setRadius(pos.coords.accuracy);
+      if (!mapa.hasLayer(pedestre)) { precisao.addTo(mapa); pedestre.addTo(mapa); }
+      controleGps.botao.classList.remove('negado');
+      controleGps.botao.title = 'Mostrar onde estou';
+      if (centralizarAoObter) { centralizarAoObter = false; irParaMim(); }
+    }, (erro) => {
+      if (erro.code !== erro.PERMISSION_DENIED) return;  // sem sinal ou tempo esgotado: o navegador segue tentando
+      pararGps();
+      controleGps.botao.classList.add('negado');
+      controleGps.botao.title = 'Localização bloqueada: permita o acesso nas configurações do navegador';
+    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+  }
+  function pararGps() {
+    if (vigiaGps != null) { navigator.geolocation.clearWatch(vigiaGps); vigiaGps = null; }
+  }
 
   // ---------- próxima partida ----------
   // Horários programados pela Semob, em Brasília (UTC-3). dias: "SSSSSNN" = segunda a domingo.
@@ -371,25 +422,27 @@ ul { list-style: none; margin: 0; padding: 0; }
     return null;
   }
 
+  // A origem da saída é o primeiro trecho do percurso, mostrado logo abaixo.
   function textoPartida(l, agora) {
-    const origem = escapar(tituloBonito(l.descricao.split(' / ')[0]));
     const p = proximaPartida(l.horarios, agora);
-    if (!p) return `Sem partida programada nos próximos 7 dias`;
+    if (!p) return 'Sem saída programada nos próximos 7 dias';
     const faltam = Math.round((p.t - agora) / 60e3);
-    const quando = faltam < 180 ? ` (em ${faltam} min)` : '';
+    const quando = faltam < 1 ? ' (agora)' : faltam < 180 ? ` (em ${faltam} min)` : '';
     const dia = p.dias === 0 ? '' : ` · ${DIA_BRT.format(p.t)}`;
-    return `Próxima saída de ${origem}: <strong>${HORA_BRT.format(p.t)}</strong>${quando}${dia}`;
+    return `Próxima saída: <strong>${HORA_BRT.format(p.t)}</strong>${quando}${dia}`;
   }
 
   // ---------- painel ----------
   linhasEl.innerHTML = LINHAS.map((l) => `
     <li><label class="linha" style="--cor:${l.cor}">
       <input type="checkbox" checked id="linha-${l.codigo.replace(/\W/g, '-')}" data-linha="${escapar(l.codigo)}">
-      <span class="placa">${escapar(l.codigo)}</span>
+      <span class="linha-placa">
+        <span class="placa">${escapar(l.codigo)}</span>
+        <span class="em-transito" data-qtd="${escapar(l.codigo)}">Em trânsito: –</span>
+      </span>
       <span class="linha-texto">
+        <span class="linha-partida" data-partida="${escapar(l.codigo)}">${textoPartida(l, Date.now())}</span>
         <span class="linha-desc">${escapar(tituloBonito(l.descricao))}</span>
-        <span class="linha-qtd" data-qtd="${escapar(l.codigo)}">—</span>
-        <span class="linha-partida" data-partida="${escapar(l.codigo)}">—</span>
       </span>
     </label></li>`).join('');
   linhasEl.addEventListener('change', (e) => {
@@ -397,14 +450,13 @@ ul { list-style: none; margin: 0; padding: 0; }
     if (!l) return;
     l.visivel = e.target.checked;
     for (const g of [l.grupoRota, l.grupoOnibus]) l.visivel ? g.addTo(mapa) : g.remove();
-    desenharLista();
   });
 
   const geradoEm = new Date(dados.gerado_em);
   $('#rodape').innerHTML =
     `Posições: Semob-DF (<a href="${API}/service/gps/operacoes" target="_blank" rel="noopener">sistemas.dftrans.df.gov.br</a>), ` +
-    `consultadas a cada ${INTERVALO_MS / 1000} s. Rotas: GeoServer da Semob, ${fmtData.format(geradoEm)}. ` +
-    `Critério: ${escapar(dados.criterio)}. Distâncias à QI 6 em linha reta.`;
+    `consultadas a cada ${INTERVALO_MS / 1000} s. Rotas e horários programados: GeoServer da Semob, ${fmtData.format(geradoEm)}. ` +
+    `Critério: ${escapar(dados.criterio)}. Sua localização só serve para desenhar o pedestre no mapa e não sai do aparelho.`;
 
   $('#recolher').addEventListener('click', (e) => {
     const recolhido = painel.classList.toggle('recolhido');
@@ -460,8 +512,7 @@ ul { list-style: none; margin: 0; padding: 0; }
     const l = porCodigo.get(v.linha);
     return `<span class="placa" style="--cor:${l?.cor ?? '#555'}">${escapar(v.linha)}</span>
       <p><strong>Veículo ${escapar(v.numero)}</strong><br>${escapar(tituloBonito(v.operadora))}</p>
-      <p>Posição às ${fmtHora.format(v.horario)} (${idadeTexto(Date.now() - v.horario)})<br>
-      ${distanciaTexto(distanciaRef(v))} da SHIN QI 6, em linha reta</p>`;
+      <p>Posição às ${fmtHora.format(v.horario)} (${idadeTexto(Date.now() - v.horario)})</p>`;
   }
 
   function desenharVeiculos() {
@@ -488,33 +539,16 @@ ul { list-style: none; margin: 0; padding: 0; }
     }
   }
 
-  function desenharLista() {
+  function desenharLinhas() {
     const agora = Date.now();
-    const ativos = [...veiculos.values()].filter((v) => porCodigo.has(v.linha) && agora - v.horario <= OCULTO_MS);
     for (const l of LINHAS) {
-      const n = ativos.filter((v) => v.linha === l.codigo).length;
-      linhasEl.querySelector(`[data-qtd="${CSS.escape(l.codigo)}"]`).textContent =
-        l.falhou ? 'sem resposta da Semob nesta rodada' : n === 0 ? 'nenhum ônibus agora' : `${n} ônibus agora`;
+      const n = [...veiculos.values()].filter((v) => v.linha === l.codigo && agora - v.horario <= OCULTO_MS).length;
+      const qtd = linhasEl.querySelector(`[data-qtd="${CSS.escape(l.codigo)}"]`);
+      qtd.innerHTML = `Em trânsito: <strong>${l.falhou ? '?' : n}</strong>`;
+      qtd.title = l.falhou ? 'Sem resposta da Semob nesta rodada' : '';
       linhasEl.querySelector(`[data-partida="${CSS.escape(l.codigo)}"]`).innerHTML = textoPartida(l, agora);
     }
-    const visiveis = ativos.filter((v) => porCodigo.get(v.linha).visivel)
-      .sort((a, b) => ordem(a.linha) - ordem(b.linha) || distanciaRef(a) - distanciaRef(b));
-    veiculosEl.innerHTML = visiveis.map((v) => `
-      <li><button type="button" class="veiculo${agora - v.horario > ANTIGO_MS ? ' antigo' : ''}" data-numero="${escapar(v.numero)}" style="--cor:${porCodigo.get(v.linha).cor}">
-        <span class="placa">${escapar(v.linha)}</span>
-        <span><strong>${distanciaTexto(distanciaRef(v))} da QI 6</strong>
-        <small>veículo ${escapar(v.numero)} · ${idadeTexto(agora - v.horario)}</small></span>
-      </button></li>`).join('');
-    $('#vazio').hidden = visiveis.length > 0;
   }
-
-  veiculosEl.addEventListener('click', (e) => {
-    const v = veiculos.get(e.target.closest('.veiculo')?.dataset.numero);
-    if (!v?.marcador) return;
-    const zoom = Math.max(mapa.getZoom(), 16);
-    movimentoReduzido ? mapa.setView([v.lat, v.lon], zoom) : mapa.flyTo([v.lat, v.lon], zoom, { duration: .8 });
-    v.marcador.openPopup();
-  });
 
   // ---------- consulta periódica ----------
   let timer = null, emAndamento = false, ultimoSucesso = null, proximaEm = null, estado = 'carregando', motivo = '';
@@ -562,7 +596,7 @@ ul { list-style: none; margin: 0; padding: 0; }
       estado = obtidos.size === 0 ? 'erro' : obtidos.size < LINHAS.length ? 'parcial' : 'ok';
       motivo = erro ? descreverErro(erro) : '';
       desenharVeiculos();
-      desenharLista();
+      desenharLinhas();
     } finally {
       emAndamento = false;
       botaoAtualizar.disabled = false;
@@ -590,14 +624,16 @@ ul { list-style: none; margin: 0; padding: 0; }
   setInterval(() => {
     if (document.hidden) return;
     desenharStatus();
-    if (++tique % 5 === 0) { desenharVeiculos(); desenharLista(); }
+    if (++tique % 5 === 0) { desenharVeiculos(); desenharLinhas(); }
   }, 1000);
 
   botaoAtualizar.addEventListener('click', ciclo);
+  // Em segundo plano, pausa as consultas e o GPS (economiza bateria e dados).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { clearTimeout(timer); timer = null; } else ciclo();
+    if (document.hidden) { clearTimeout(timer); timer = null; pararGps(); } else { ciclo(); iniciarGps(); }
   });
   ciclo();
+  iniciarGps();
 })();
 </script>
 </body>
