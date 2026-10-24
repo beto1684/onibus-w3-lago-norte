@@ -1,7 +1,7 @@
-# Ônibus W3 Norte · SHIN QI 8 / QI 6
+# Ônibus W3 Norte · SHIN QI 6
 
 Mapa com a posição ao vivo dos ônibus que passam pela **W3 Norte** e pela
-**EPPN em frente à SHIN QI 8** (Lago Norte, Brasília). Cada ônibus aparece com
+**EPPN em frente à SHIN QI 6** (Lago Norte, Brasília). Cada ônibus aparece com
 o número da linha e uma seta apontando o sentido do movimento, calculado pelo
 deslocamento entre duas leituras. Enquanto não houver duas leituras, a seta
 fica cinza e sem direção.
@@ -10,8 +10,7 @@ O mapa destaca a parada 2293 ("SHIN APOS ENTRADA DA QI/QL 06 EPPN"), rotulada
 **SHIN QI 6**. Para cada linha, o painel mostra quantos ônibus estão em trânsito
 e a próxima saída programada da origem (o primeiro trecho do percurso). Um
 pedestre marca onde você está, pelo GPS do celular; a posição só serve para
-desenhar o pedestre e não sai do aparelho. A escolha das linhas continua
-baseada na QI 8.
+desenhar o pedestre e não sai do aparelho.
 
 ## Linhas
 
@@ -24,15 +23,13 @@ baseada na QI 8.
 Critério, aplicado por `gerar_rotas.py` sobre o itinerário georreferenciado
 oficial da Semob:
 
-1. o itinerário passa a até 35 m das paradas **2295** ("SHIN APOS ENTRADA
-   QI/QL 08 EPPN") ou **2296** ("SHIN QI 08 EPPN");
+1. o itinerário passa a até 35 m das paradas **2293** ("SHIN APOS ENTRADA DA
+   QI/QL 06 EPPN") ou **2294** ("SHIN QI 6 EPPN"), uma em cada sentido da EPPN;
 2. o itinerário passa a até 35 m de pelo menos 3 das 32 paradas cuja
    descrição contém "W3 NORTE". Quem só cruza a W3 pega no máximo uma.
 
-Dezessete itinerários passam em frente à QI 8, mas só esses três passam
-pela W3 Norte; os demais têm **zero** paradas da W3. Linhas com "136" no
-número que ficam de fora: 136.1, 136.4, 136.6, 136.7, 136.9 (não passam na
-QI 8) e 136.3, 136.8 (passam na QI 8, mas não na W3 Norte).
+As demais linhas com "136" no número ficam de fora porque não passam em frente
+à QI 6 ou não percorrem a W3 Norte.
 
 ## Como abrir
 
@@ -54,11 +51,11 @@ python gerar_rotas.py
 ```
 
 O script usa só a biblioteca padrão e faz cerca de 5 requisições ao GeoServer
-(o filtro espacial em torno das paradas da QI 8 roda no próprio servidor).
+(o filtro espacial em torno das paradas da QI 6 roda no próprio servidor).
 Ele imprime a avaliação de cada candidata e reescreve `rotas.js`. As linhas
 monitoradas pela página saem desse arquivo, então não há lista para editar à
 mão. Os limiares (`RAIO_M`, `MIN_PARADAS_W3`) e as paradas de referência
-(`PARADAS_QI8`) estão no topo do script.
+(`PARADAS_QI6`) estão no topo do script.
 
 ## Fontes de dados
 

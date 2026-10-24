@@ -1,9 +1,9 @@
 """Gera rotas.js com as linhas de ônibus que passam pela W3 Norte e pela EPPN
-em frente à SHIN QI 8 (Lago Norte), a partir do GeoServer público da Semob-DF.
+em frente à SHIN QI 6 (Lago Norte), a partir do GeoServer público da Semob-DF.
 
 Critério, usando só dados e nomenclatura oficiais da Semob:
-  1. o itinerário passa a até 35 m de uma das paradas da SHIN QI 08 na EPPN
-     (2295 "SHIN APOS ENTRADA QI/QL 08 EPPN" e 2296 "SHIN QI 08 EPPN");
+  1. o itinerário passa a até 35 m de uma das paradas da SHIN QI 6 na EPPN
+     (2293 "SHIN APOS ENTRADA DA QI/QL 06 EPPN" e 2294 "SHIN QI 6 EPPN");
      esse filtro espacial roda no próprio GeoServer (DWITHIN), sem baixar
      as ~1400 rotas do DF;
   2. o itinerário passa a até 35 m de pelo menos 3 paradas cuja descrição
@@ -24,8 +24,8 @@ CAMADA_ROTAS = "semob:percuso das linhas"  # sic: é o nome da camada no GeoServ
 GEOM_ROTAS = "geo_linhas_lin_31983"
 CAMADA_PARADAS = "semob:Paradas de onibus"
 CAMADA_HORARIOS = "semob:Horários das Linhas"
-PARADAS_QI8 = ("2295", "2296")
-PARADA_REFERENCIA = "2293"  # só para exibição: "SHIN APOS ENTRADA DA QI/QL 06 EPPN"
+PARADAS_QI6 = ("2293", "2294")  # uma em cada sentido da EPPN
+PARADA_REFERENCIA = "2293"  # a única desenhada no mapa
 ROTULO_REFERENCIA = "SHIN QI 6"
 RAIO_M = 35
 MIN_PARADAS_W3 = 3
@@ -88,17 +88,17 @@ def simplificar(coords, tol_m):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    qi8 = wfs(CAMADA_PARADAS, f"parada IN ({lista_cql(PARADAS_QI8)})")
-    if len(qi8) != len(PARADAS_QI8):
-        sys.exit(f"Esperava {len(PARADAS_QI8)} paradas da QI 8, vieram {len(qi8)}.")
+    qi6 = wfs(CAMADA_PARADAS, f"parada IN ({lista_cql(PARADAS_QI6)})")
+    if len(qi6) != len(PARADAS_QI6):
+        sys.exit(f"Esperava {len(PARADAS_QI6)} paradas da QI 6, vieram {len(qi6)}.")
 
     perto = " OR ".join(
         f"DWITHIN({GEOM_ROTAS}, POINT({p['geometry']['coordinates'][0]} {p['geometry']['coordinates'][1]}), {RAIO_M}, meters)"
-        for p in qi8)
+        for p in qi6)
     candidatas = wfs(CAMADA_ROTAS, f"situacao = 'ATIVA' AND ({perto})",
                      campos=["cd_linha", "lin_sentido", "tx_linha", GEOM_ROTAS])
     paradas_w3 = wfs(CAMADA_PARADAS, "descricao LIKE '%W3 NORTE%' AND situacao = 'ATIVA'")
-    print(f"{len(candidatas)} itinerários passam pela QI 8; {len(paradas_w3)} paradas oficiais na W3 Norte.\n")
+    print(f"{len(candidatas)} itinerários passam pela QI 6; {len(paradas_w3)} paradas oficiais na W3 Norte.\n")
 
     aprovadas = {}
     for f in sorted(candidatas, key=lambda f: f["properties"]["cd_linha"]):
@@ -138,7 +138,7 @@ def main():
                 for p in wfs(CAMADA_PARADAS, f"parada IN ({lista_cql(codigos_parada)})", srs="EPSG:4326")]
 
     dados = {"gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-             "criterio": f"passa em frente à SHIN QI 8 (EPPN) e percorre pelo menos {MIN_PARADAS_W3} "
+             "criterio": f"passa em frente à SHIN QI 6 (EPPN) e percorre pelo menos {MIN_PARADAS_W3} "
                          f"paradas da W3 Norte",
              "linhas": [linhas[c] for c in codigos if c in linhas],
              "parada_referencia": {**paradas_em((PARADA_REFERENCIA,))[0], "rotulo": ROTULO_REFERENCIA}}
